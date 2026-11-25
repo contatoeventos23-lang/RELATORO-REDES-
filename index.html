@@ -96,6 +96,21 @@
   .pin{font-family:ui-monospace,monospace;background:#f3f0f8;padding:2px 8px;border-radius:6px;font-weight:700}
   .off{opacity:.5}
   .loading{padding:30px;text-align:center;color:var(--muted)}
+  .pct{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
+  .pct h3{margin:0 0 4px;font-size:16px}
+  .pct .leg{display:flex;gap:14px;font-size:12.5px;color:var(--muted);margin-bottom:10px}
+  .pct .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .prow{padding:8px 0;border-top:1px solid var(--line)}
+  .prow:first-of-type{border-top:0}
+  .prow .t{display:flex;justify-content:space-between;gap:8px;font-weight:600;font-size:14px;margin-bottom:5px}
+  .prow .t small{color:var(--muted);font-weight:500}
+  .prow.geral .t{font-size:15.5px;color:var(--brand)}
+  .bar{display:flex;align-items:center;gap:8px;margin:3px 0}
+  .bar .tr{flex:1;height:14px;background:#eeeaf4;border-radius:999px;overflow:hidden}
+  .bar .fi{height:100%;border-radius:999px}
+  .bar .fi.cel{background:var(--ok)} .bar .fi.vis{background:var(--warn)} .bar .fi.tot{background:var(--brand2)}
+  .bar .v{width:46px;text-align:right;font-weight:700;font-size:13.5px}
+  .bar .k{width:44px;font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -251,14 +266,14 @@
     if (S.role==='admin'){
       const discs = [...new Set(celulas.map(c=>c.disc_nome))];
       const sel = h('select',{onchange:(e)=>{ S.filtroDisc=e.target.value; viewMarcar(); }},
-        h('option',{value:'', text:'Todas as redes'}), discs.map(d => h('option',{value:d, text:'Rede ' + d, selected: S.filtroDisc===d || null})));
+        h('option',{value:'', text:'Todas as redes'}), discs.map(d => h('option',{value:d, text:redeLabel(d), selected: S.filtroDisc===d || null})));
       app.append(h('div',{class:'filter'}, sel));
       if (S.filtroDisc) lista = celulas.filter(c=>c.disc_nome===S.filtroDisc);
     }
     if (!lista.length) app.append(h('div',{class:'card'}, h('div',{class:'empty', text:'Nenhuma célula para você ainda. Peça ao Pastor para cadastrar.'})));
     let redeAtual = null;
     for (const c of lista){
-      if (S.role==='admin' && c.disc_nome !== redeAtual){ redeAtual = c.disc_nome; app.append(h('h2',{class:'sec', text:'Rede ' + redeAtual})); }
+      if (S.role==='admin' && c.disc_nome !== redeAtual){ redeAtual = c.disc_nome; app.append(h('h2',{class:'sec', text:redeLabel(redeAtual)})); }
       app.append(cardCelula(c));
     }
   }
@@ -289,7 +304,7 @@
     const head = h('div',{class:'head', onclick:()=>{ if (aberta()) S.fechadas.add(c.id); else S.fechadas.delete(c.id); body.classList.toggle('hidden'); arrow.textContent = aberta()?'▾':'▸'; }},
       h('div',{style:'flex:1;min-width:0'},
         h('h3',{text:c.nome}),
-        h('div',{class:'sub', text:[ c.lider && ('Líder: '+c.lider), c.dia && (c.dia + (c.hora?' · '+c.hora:'')), S.role==='admin' && ('Rede '+c.disc_nome) ].filter(Boolean).join(' · ')}),
+        h('div',{class:'sub', text:[ c.lider && ('Líder: '+c.lider), c.dia && (c.dia + (c.hora?' · '+c.hora:'')), S.role==='admin' && c.disc_nome!=='Pr. Igor' && ('Rede '+c.disc_nome) ].filter(Boolean).join(' · ')}),
         chips),
       arrow);
     card.append(head, body);
@@ -398,6 +413,7 @@
       stat('Culto (C)', T.c, diff(T.c, P.c)),
       stat('Células que lançaram', `${lancadas}/${atual.length}`, null, lancadas<atual.length ? 'faltam ' + (atual.length-lancadas) : 'todas ✓')));
 
+    app.append(pctBox(atual, 'Porcentagem da semana'));
     app.append(h('div',{class:'toolbar'},
       h('button',{class:'btn sec small', text:'📋 Copiar resumo p/ WhatsApp', onclick:()=>copiarWhats(atual, T, lancadas)}),
       h('button',{class:'btn sec small', text:'⬇ Baixar planilha', onclick:()=>baixarCSV(`semana-${S.semana}.csv`,
@@ -408,7 +424,7 @@
     const porDisc = groupBy(atual, r=>r.disc_nome);
     for (const [disc, l] of porDisc){
       const s = soma(l);
-      tb.append(h('tr',{class:'disc'}, h('td',{text:'Rede ' + disc}), td(s.m), td(s.fa), td(s.v), td(totCel(s)), td(s.c), h('td',{text:''})));
+      tb.append(h('tr',{class:'disc'}, h('td',{text:redeLabel(disc)}), td(s.m), td(s.fa), td(s.v), td(totCel(s)), td(s.c), h('td',{text:''})));
       for (const r of l){
         const nome = h('td',{class: S.role==='admin' || true ? 'lnk' : '', text: r.celula + (r.lider ? ' · ' + r.lider : ''),
           onclick:()=>{ S.tab='marcar'; S.fechadas.delete(r.celula_id); if (S.role==='admin') S.filtroDisc = r.disc_nome; startApp(); }});
@@ -423,13 +439,52 @@
   }
   const td = (v) => h('td',{text:String(v)});
   function groupBy(l, f){ const m=new Map(); for (const x of l){ const k=f(x); if(!m.has(k)) m.set(k,[]); m.get(k).push(x);} return m; }
+  const redeLabel = (n) => n === 'Pr. Igor' ? 'Célula do Pr. Igor' : 'Rede ' + n;
 
+  // ---- gráfico de porcentagem — mesmo cálculo do "Relatório Consolidado" ----
+  // Por célula: Média M = média dos M presentes nas semanas lançadas; Média V idem.
+  //   M% = Média M ÷ M cadastrados   ·   V% = Média V ÷ M cadastrados   ·   Total% = (Méd M + Méd V) ÷ M cadastrados
+  // Por rede / geral: soma das médias das células ÷ soma dos M cadastrados (todas as células, como na planilha).
+  function freq(l){
+    let memb = 0, vis = 0, cad = 0, cels = 0, lanc = 0;
+    for (const [, lc] of groupBy(l, r=>r.celula_id)){
+      cels++; cad += lc[0].cad_m;
+      const v = lc.filter(r=>r.lancado);
+      if (v.length){ lanc++; memb += v.reduce((a,r)=>a+r.m,0)/v.length; vis += v.reduce((a,r)=>a+r.v,0)/v.length; }
+    }
+    const pc = (x) => cad ? Math.round(x*100/cad) : null;
+    return { pm: pc(memb), pv: pc(vis), pt: pc(memb+vis), memb, vis, cad, cels, lanc,
+             mcel: cels ? memb/cels : 0, vcel: cels ? vis/cels : 0 };
+  }
+  const f1n = (n) => (Math.round(n*10)/10).toLocaleString('pt-BR');
+  function pctRow(titulo, f, geral){
+    const bar = (k, cls, p) => h('div',{class:'bar'}, h('span',{class:'k', text:k}),
+      h('div',{class:'tr'}, h('div',{class:'fi '+cls, style:`width:${Math.min(p??0,100)}%`})), h('span',{class:'v', text: p==null ? '—' : p+'%'}));
+    return h('div',{class:'prow' + (geral?' geral':'')},
+      h('div',{class:'t'}, h('span',{text:titulo}), h('small',{text: f.lanc<f.cels ? `${f.lanc}/${f.cels} células lançaram` : 'todas lançaram'})),
+      bar('Memb.','cel',f.pm), bar('Visit.','vis',f.pv), bar('Total','tot',f.pt),
+      h('div',{class:'legend', style:'margin:4px 0 0;font-size:12px', text:`${f.cad} membros cadastrados · Méd. membros ${f1n(f.memb)} · Méd. visitantes ${f1n(f.vis)} · Mem/Cél ${f1n(f.mcel)} · Vis/Cél ${f1n(f.vcel)}`}));
+  }
+  function pctBox(rows, titulo){
+    const box = h('div',{class:'pct'}, h('h3',{text:titulo}),
+      h('div',{class:'leg'}, h('span',{}, h('i',{style:'background:var(--ok)'}), '% Membros'), h('span',{}, h('i',{style:'background:var(--warn)'}), '% Visitantes'), h('span',{}, h('i',{style:'background:var(--brand2)'}), '% Total')));
+    if (S.role==='admin'){
+      box.append(pctRow('Geral — Rede Pr. Igor (todas)', freq(rows), true));
+      for (const [disc, l] of groupBy(rows, r=>r.disc_nome)) box.append(pctRow(redeLabel(disc), freq(l)));
+    } else {
+      const disc = rows.length ? rows[0].disc_nome : '';
+      box.append(pctRow('Total da ' + redeLabel(disc), freq(rows), true));
+      for (const [, l] of groupBy(rows, r=>r.celula_id)) box.append(pctRow(l[0].celula, freq(l)));
+    }
+    box.append(h('p',{class:'legend', style:'margin:8px 0 0', text:'Cálculo igual ao Relatório Consolidado: % Membros = média de membros presentes ÷ membros cadastrados; % Visitantes = média de visitantes ÷ membros cadastrados; % Total = (membros + visitantes) ÷ membros cadastrados. No mês, a média conta só as semanas que a célula lançou.'}));
+    return box;
+  }
   function copiarWhats(atual, T, lancadas){
     const linhas = [`*${CFG.nomeIgreja || 'Relatório das Redes'}*`, `Semana de ${weekLabel(S.semana)}`, '',
-      `Célula: *${T.m+T.fa+T.v}* (M ${T.m} · FA ${T.fa} · V ${T.v})`, `Culto: *${T.c}*`, `Células que lançaram: ${lancadas}/${atual.length}`, ''];
+      `Célula: *${T.m+T.fa+T.v}* (M ${T.m} · FA ${T.fa} · V ${T.v})`, `Culto: *${T.c}*`, `% Membros ${freq(atual).pm ?? 0}% · % Visitantes ${freq(atual).pv ?? 0}% · % Total ${freq(atual).pt ?? 0}%`, `Células que lançaram: ${lancadas}/${atual.length}`, ''];
     for (const [disc, l] of groupBy(atual, r=>r.disc_nome)){
       const s = l.reduce((a,r)=>({t:a.t+r.m+r.fa+r.v, c:a.c+r.c}),{t:0,c:0});
-      linhas.push(`*Rede ${disc}:* célula ${s.t} · culto ${s.c}`);
+      linhas.push(`*${redeLabel(disc)}:* célula ${s.t} · culto ${s.c}`);
       for (const r of l) linhas.push(`  • ${r.celula}: ${r.lancado ? `${r.m+r.fa+r.v} na célula, ${r.c} no culto` : 'não lançou'}`);
     }
     const txt = linhas.join('\n');
@@ -477,7 +532,7 @@
     const somaPorSemana = (l) => [...groupBy(l, r=>r.semana)].map(([semana, x]) => ({ semana, lancado:x.some(r=>r.lancado), m:x.reduce((a,r)=>a+r.m,0), fa:x.reduce((a,r)=>a+r.fa,0), v:x.reduce((a,r)=>a+r.v,0), c:x.reduce((a,r)=>a+r.c,0) }));
 
     for (const [disc, l] of groupBy(rows, r=>r.disc_nome)){
-      const d = linhaDe('Rede ' + disc, somaPorSemana(l), 'disc'); tb.append(d.tr); csv.push([disc, '(total da rede)', ...d.csv]);
+      const d = linhaDe(redeLabel(disc), somaPorSemana(l), 'disc'); tb.append(d.tr); csv.push([disc, '(total da rede)', ...d.csv]);
       for (const [, lc] of groupBy(l, r=>r.celula_id)){
         const x = linhaDe(lc[0].celula + (lc[0].lider ? ' · ' + lc[0].lider : ''), lc); tb.append(x.tr); csv.push([disc, lc[0].celula, ...x.csv]);
       }
@@ -485,6 +540,7 @@
     const g = linhaDe('TOTAL GERAL', somaPorSemana(rows), 'total'); tb.append(g.tr); csv.push(['TOTAL GERAL','', ...g.csv]);
 
     app.replaceChildren(bar,
+      pctBox(rows.filter(r=>validas.includes(r.semana)), `Porcentagem de ${MESES[m]} (média do mês)`),
       h('div',{class:'toolbar'}, h('button',{class:'btn sec small', text:'⬇ Baixar planilha do mês', onclick:()=>baixarCSV(`relatorio-${y}-${pad(m+1)}.csv`, csv)})),
       h('div',{class:'scroll'}, h('table',{class:'tbl'}, h('thead',{}, head1, head2), tb)),
       h('p',{class:'legend', style:'margin-top:10px', text:'M = membros na célula · FA = frequentadores assíduos · V = visitantes · C = culto. A média conta só as semanas em que a célula lançou. Semana em branco = célula ainda não lançou.'}));
