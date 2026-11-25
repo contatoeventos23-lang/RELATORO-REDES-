@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3b2a5c">
+<title>Relatório das Redes</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#f5f3f8; --card:#fff; --ink:#1f1a2b; --muted:#6c6478; --line:#e6e1ee;
+    --brand:#3b2a5c; --brand2:#5b4390; --ok:#1f8a4c; --okbg:#e5f5ec; --warn:#b7791f; --warnbg:#fdf3e1;
+    --bad:#c0392b; --badbg:#fdecea; --culto:#2563eb; --cultobg:#e8efff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  button,input,select{font:inherit}
+  .hidden{display:none!important}
+  header.top{position:sticky;top:0;z-index:20;background:var(--brand);color:#fff;padding:12px 16px calc(10px);box-shadow:0 2px 8px #0002}
+  header.top .row{display:flex;align-items:center;gap:10px;max-width:1100px;margin:0 auto}
+  header.top h1{font-size:17px;margin:0;flex:1;line-height:1.2}
+  header.top small{display:block;font-weight:400;opacity:.8;font-size:13px}
+  .btn{border:0;border-radius:10px;padding:10px 14px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}
+  .btn.sec{background:#fff;color:var(--brand);border:1px solid var(--line)}
+  .btn.ghost{background:transparent;color:#fff;border:1px solid #ffffff55;padding:7px 10px;font-size:14px}
+  .btn.small{padding:7px 10px;font-size:14px}
+  .btn:disabled{opacity:.5}
+  main{max-width:1100px;margin:0 auto;padding:14px 12px 90px}
+  .tabs{display:flex;gap:6px;overflow-x:auto;max-width:1100px;margin:10px auto 0;padding:0 0 2px}
+  .tabs button{flex:0 0 auto;border:0;border-radius:999px;padding:7px 14px;background:#ffffff22;color:#fff;font-weight:600;cursor:pointer;font-size:14px}
+  .tabs button.on{background:#fff;color:var(--brand)}
+  .weekbar{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 14px}
+  .weekbar .lbl{font-weight:700;text-align:center;min-width:190px}
+  .weekbar .lbl small{display:block;color:var(--muted);font-weight:500;font-size:13px}
+  .iconbtn{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:20px;cursor:pointer;color:var(--brand)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:14px;overflow:hidden}
+  .card .head{padding:12px 14px;display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+  .card .head h3{margin:0;font-size:17px}
+  .card .head .sub{color:var(--muted);font-size:13px}
+  .card .body{border-top:1px solid var(--line)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .chip{font-size:12.5px;padding:3px 9px;border-radius:999px;background:#f0edf5;color:var(--ink);font-weight:600}
+  .chip.ok{background:var(--okbg);color:var(--ok)} .chip.cu{background:var(--cultobg);color:var(--culto)}
+  .chip.warn{background:var(--warnbg);color:var(--warn)}
+  .person{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
+  .person:last-child{border-bottom:0}
+  .person .nm{flex:1;min-width:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tag{font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;background:#efe9fb;color:var(--brand2);margin-left:4px;vertical-align:middle}
+  .tog{border:2px solid var(--line);background:#fff;color:var(--muted);border-radius:10px;padding:8px 10px;font-weight:700;font-size:14px;cursor:pointer;min-width:74px;transition:.12s}
+  .tog.cel.on{background:var(--ok);border-color:var(--ok);color:#fff}
+  .tog.cul.on{background:var(--culto);border-color:var(--culto);color:#fff}
+  .edit{border:0;background:transparent;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 6px}
+  .stepper{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px dashed var(--line)}
+  .stepper .t{flex:1;font-weight:600}
+  .stepper button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:20px;cursor:pointer;color:var(--brand)}
+  .stepper .n{min-width:30px;text-align:center;font-weight:700;font-size:18px}
+  .addrow{display:flex;gap:6px;padding:10px 12px;border-top:1px dashed var(--line);flex-wrap:wrap}
+  .addrow input{flex:1;min-width:150px}
+  input[type=text],input[type=password],input[type=tel],select{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;width:100%}
+  .empty{padding:14px;color:var(--muted);font-size:14px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px}
+  .stat .l{font-size:13px;color:var(--muted);font-weight:600}
+  .stat .v{font-size:26px;font-weight:800;margin-top:2px}
+  .stat .d{font-size:12.5px;margin-top:2px}
+  .up{color:var(--ok)} .down{color:var(--bad)}
+  .tbl{width:100%;border-collapse:collapse;font-size:14px;background:#fff}
+  .tbl th,.tbl td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  .tbl tbody td:first-child,.tbl thead tr:first-child th:first-child{text-align:left;white-space:normal;min-width:170px}
+  .tbl thead th{background:#f3f0f8;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.02em;position:sticky;top:0}
+  .tbl tr.disc td{background:#faf8fd;font-weight:700}
+  .tbl tr.total td{background:var(--brand);color:#fff;font-weight:800}
+  .tbl td.lnk{color:var(--brand2);cursor:pointer;text-decoration:underline}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+  .login{max-width:380px;margin:60px auto;background:#fff;border:1px solid var(--line);border-radius:20px;padding:26px;text-align:center}
+  .login h2{margin:6px 0 4px}
+  .login p{color:var(--muted);margin:0 0 18px;font-size:14px}
+  .login input{text-align:center;font-size:24px;letter-spacing:8px;margin-bottom:12px}
+  .err{color:var(--bad);font-size:14px;min-height:20px;margin-bottom:6px}
+  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#1f1a2b;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;box-shadow:0 6px 20px #0004;max-width:90vw}
+  .modal{position:fixed;inset:0;background:#0006;z-index:50;display:flex;align-items:flex-end;justify-content:center}
+  .modal .box{background:#fff;width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:18px;max-height:90vh;overflow:auto}
+  @media(min-width:600px){.modal{align-items:center}.modal .box{border-radius:18px}}
+  .modal h3{margin:0 0 12px}
+  .modal label{display:block;font-size:13px;color:var(--muted);font-weight:600;margin:10px 0 4px}
+  .modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+  .legend{font-size:13px;color:var(--muted);margin:-6px 0 12px}
+  .filter{margin-bottom:12px}
+  h2.sec{font-size:18px;margin:18px 0 8px}
+  .list .it{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);background:#fff}
+  .list .it:last-child{border-bottom:0}
+  .list .it .nm{flex:1}
+  .muted{color:var(--muted)}
+  .pin{font-family:ui-monospace,monospace;background:#f3f0f8;padding:2px 8px;border-radius:6px;font-weight:700}
+  .off{opacity:.5}
+  .loading{padding:30px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="top hidden" id="topbar">
+  <div class="row">
+    <h1><span id="igreja">Relatório das Redes</span><small id="quem"></small></h1>
+    <button class="btn ghost" id="sair">Sair</button>
+  </div>
+  <div class="tabs" id="tabs"></div>
+</header>
+
+<main id="app"><div class="loading">Carregando…</div></main>
+<div id="toast" class="hidden"></div>
+
+<script>
+(() => {
+  // ============ BÁSICO ============
+  const CFG = window.IGREJA_CONFIG || {};
+  const app = document.getElementById('app');
+  const $ = (s) => document.querySelector(s);
+  const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  // cria elemento com texto seguro (nada vira HTML)
+  function h(tag, attrs, ...kids){
+    const el = document.createElement(tag);
+    for (const [k,v] of Object.entries(attrs || {})){
+      if (v == null || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else if (k === 'text') el.textContent = v;
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    for (const k of kids.flat(Infinity)){
+      if (k == null || k === false) continue;
+      el.append(k instanceof Node ? k : document.createTextNode(String(k)));
+    }
+    return el;
+  }
+  function toast(msg, ms=2200){ const t=$('#toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.add('hidden'), ms); }
+  const store = { get(k){ try{return localStorage.getItem(k)}catch{return null} }, set(k,v){ try{localStorage.setItem(k,v)}catch{} }, del(k){ try{localStorage.removeItem(k)}catch{} } };
+
+  // ============ DATAS (semana começa na segunda) ============
+  const pad = (n)=>String(n).padStart(2,'0');
+  const iso = (d)=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const parse = (s)=>{ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
+  const addDays = (d,n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+  const monday = (d)=>{ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const wd=(x.getDay()+6)%7; return addDays(x,-wd); };
+  const br = (d)=>`${pad(d.getDate())}/${pad(d.getMonth()+1)}`;
+  const weekLabel = (s)=>{ const a=parse(s); return `${br(a)} a ${br(addDays(a,6))}`; };
+  function mondaysOfMonth(y,m){ const out=[]; let d=monday(new Date(y,m,1)); if (d.getMonth()!==m) d=addDays(d,7); while(d.getMonth()===m){ out.push(iso(d)); d=addDays(d,7);} return out; }
+
+  // ============ SUPABASE ============
+  let sb = null;
+  const configured = CFG.supabaseUrl && !/COLE_AQUI/.test(CFG.supabaseUrl) && CFG.supabaseAnonKey && !/COLE_AQUI/.test(CFG.supabaseAnonKey);
+  if (configured && window.supabase) sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, { auth:{ persistSession:false } });
+  async function rpc(fn, args){
+    if (!sb) throw new Error('Sistema não configurado (config.js).');
+    const { data, error } = await sb.rpc(fn, args);
+    if (error) throw new Error(error.message || 'Erro de conexão.');
+    if (data && data.erro) { const e = new Error(data.erro); e.auth = /PIN|tentativas/.test(data.erro); throw e; }
+    return data;
+  }
+
+  // ============ ESTADO ============
+  const S = {
+    pin: store.get('ig_pin'), role:null, nome:'',
+    semana: iso(monday(new Date())),
+    mes: { y:new Date().getFullYear(), m:new Date().getMonth() },
+    tab: null, abertas: new Set(), filtroDisc: '',
+  };
+  if (CFG.nomeIgreja) { $('#igreja').textContent = CFG.nomeIgreja; document.title = 'Relatório · ' + CFG.nomeIgreja; }
+
+  $('#sair').onclick = () => { store.del('ig_pin'); S.pin=null; S.role=null; renderLogin(); };
+
+  function handleErr(e){
+    if (e.auth){ store.del('ig_pin'); S.pin=null; renderLogin(e.message); return; }
+    toast('⚠ ' + e.message, 3500);
+  }
+
+  // ============ LOGIN ============
+  function renderLogin(msg){
+    $('#topbar').classList.add('hidden');
+    app.replaceChildren();
+    if (!configured){
+      app.append(h('div',{class:'login'}, h('h2',{text:'Falta configurar'}),
+        h('p',{text:'Abra o arquivo config.js e cole o Project URL e a chave anon public do Supabase.'})));
+      return;
+    }
+    const inp = h('input',{type:'password', inputmode:'numeric', autocomplete:'off', placeholder:'••••', maxlength:'8'});
+    const err = h('div',{class:'err', text: msg || ''});
+    const btn = h('button',{class:'btn', style:'width:100%', text:'Entrar'});
+    const go = async () => {
+      const pin = inp.value.trim();
+      if (pin.length < 4){ err.textContent='Digite seu PIN (4 números ou mais).'; return; }
+      btn.disabled = true; err.textContent='';
+      try { const r = await rpc('ig_login',{p_pin:pin}); S.pin=pin; store.set('ig_pin',pin); S.role=r.role; S.nome=r.nome; startApp(); }
+      catch(e){ err.textContent = e.message; }
+      finally { btn.disabled = false; }
+    };
+    btn.onclick = go; inp.addEventListener('keydown', e => { if (e.key==='Enter') go(); });
+    app.append(h('div',{class:'login'},
+      h('div',{style:'font-size:40px', text:'⛪'}),
+      h('h2',{text: CFG.nomeIgreja || 'Relatório das Redes'}),
+      h('p',{text:'Relatório semanal das células e do culto. Digite o PIN que você recebeu.'}),
+      inp, err, btn));
+    setTimeout(()=>inp.focus(), 50);
+  }
+
+  async function autoLogin(){
+    if (!configured || !S.pin) return renderLogin();
+    try { const r = await rpc('ig_login',{p_pin:S.pin}); S.role=r.role; S.nome=r.nome; startApp(); }
+    catch(e){ store.del('ig_pin'); S.pin=null; renderLogin(e.auth ? '' : e.message); }
+  }
+
+  // ============ ABAS ============
+  const TABS_ADMIN = [['semana','📊 Semana'],['mes','📅 Mês'],['marcar','✅ Marcar presença'],['cadastro','⚙️ Cadastro']];
+  const TABS_DISC  = [['marcar','✅ Marcar presença'],['semana','📊 Resumo'],['mes','📅 Mês']];
+  function startApp(){
+    $('#topbar').classList.remove('hidden');
+    $('#quem').textContent = S.role==='admin' ? 'Pr. Igor · visão geral' : 'Discipulador(a): ' + S.nome;
+    const tabs = S.role==='admin' ? TABS_ADMIN : TABS_DISC;
+    if (!S.tab || !tabs.some(t=>t[0]===S.tab)) S.tab = tabs[0][0];
+    const box = $('#tabs'); box.replaceChildren();
+    for (const [k,l] of tabs) box.append(h('button',{class: S.tab===k?'on':'', text:l, onclick:()=>{ S.tab=k; startApp(); }}));
+    render();
+  }
+  function render(){
+    if (S.tab==='marcar') return viewMarcar();
+    if (S.tab==='semana') return viewSemana();
+    if (S.tab==='mes') return viewMes();
+    if (S.tab==='cadastro') return viewCadastro();
+  }
+
+  function weekBar(onChange){
+    const s = S.semana, hoje = iso(monday(new Date()));
+    const sub = s===hoje ? 'Esta semana' : (s===iso(addDays(monday(new Date()),-7)) ? 'Semana passada' : '');
+    return h('div',{class:'weekbar'},
+      h('button',{class:'iconbtn', title:'Semana anterior', text:'‹', onclick:()=>{ S.semana=iso(addDays(parse(s),-7)); onChange(); }}),
+      h('div',{class:'lbl'}, 'Semana de ' + weekLabel(s), h('small',{text: sub || ' '})),
+      h('button',{class:'iconbtn', title:'Próxima semana', text:'›', disabled: s>=hoje || null, onclick:()=>{ if (s<hoje){ S.semana=iso(addDays(parse(s),7)); onChange(); } }}));
+  }
+
+  // ============ MARCAR PRESENÇA ============
+  async function viewMarcar(){
+    app.replaceChildren(weekBar(viewMarcar), h('div',{class:'loading', text:'Carregando células…'}));
+    let data;
+    try { data = await rpc('ig_dados',{p_pin:S.pin, p_semana:S.semana}); } catch(e){ return handleErr(e); }
+    const celulas = data.celulas || [];
+    app.replaceChildren(weekBar(viewMarcar));
+    app.append(h('div',{class:'legend', text:'Toque em CÉLULA para quem foi na célula e em CULTO para quem foi no culto. Salva na hora.'}));
+
+    let lista = celulas;
+    if (S.role==='admin'){
+      const discs = [...new Set(celulas.map(c=>c.disc_nome))];
+      const sel = h('select',{onchange:(e)=>{ S.filtroDisc=e.target.value; viewMarcar(); }},
+        h('option',{value:'', text:'Todas as redes'}), discs.map(d => h('option',{value:d, text:'Rede ' + d, selected: S.filtroDisc===d || null})));
+      app.append(h('div',{class:'filter'}, sel));
+      if (S.filtroDisc) lista = celulas.filter(c=>c.disc_nome===S.filtroDisc);
+    }
+    if (!lista.length) app.append(h('div',{class:'card'}, h('div',{class:'empty', text:'Nenhuma célula para você ainda. Peça ao Pastor para cadastrar.'})));
+    if (lista.length === 1) S.abertas.add(lista[0].id);
+    for (const c of lista) app.append(cardCelula(c));
+  }
+
+  function resumoCel(c){
+    const m = c.membros.filter(p=>p.celula && p.tipo==='M').length;
+    const fa = c.membros.filter(p=>p.celula && p.tipo==='FA').length;
+    const cu = c.membros.filter(p=>p.culto).length + (c.visitantes_culto||0);
+    return { m, fa, v:c.visitantes||0, total:m+fa+(c.visitantes||0), cu, cadM:c.membros.filter(p=>p.tipo==='M').length };
+  }
+
+  function cardCelula(c){
+    const card = h('div',{class:'card'});
+    const chips = h('div',{class:'chips'});
+    const paintChips = () => {
+      const r = resumoCel(c);
+      chips.replaceChildren(
+        h('span',{class:'chip ok', text:`Célula: ${r.total}`}),
+        h('span',{class:'chip', text:`M ${r.m}/${r.cadM}`}),
+        h('span',{class:'chip', text:`FA ${r.fa}`}),
+        h('span',{class:'chip', text:`Visit. ${r.v}`}),
+        h('span',{class:'chip cu', text:`Culto: ${r.cu}`}));
+    };
+    paintChips();
+    const aberta = () => S.abertas.has(c.id);
+    const body = h('div',{class:'body' + (aberta()?'':' hidden')});
+    const arrow = h('span',{style:'font-size:20px;color:var(--muted)', text: aberta()?'▾':'▸'});
+    const head = h('div',{class:'head', onclick:()=>{ if (aberta()) S.abertas.delete(c.id); else S.abertas.add(c.id); body.classList.toggle('hidden'); arrow.textContent = aberta()?'▾':'▸'; }},
+      h('div',{style:'flex:1;min-width:0'},
+        h('h3',{text:c.nome}),
+        h('div',{class:'sub', text:[ c.lider && ('Líder: '+c.lider), c.dia && (c.dia + (c.hora?' · '+c.hora:'')), S.role==='admin' && ('Rede '+c.disc_nome) ].filter(Boolean).join(' · ')}),
+        chips),
+      arrow);
+    card.append(head, body);
+
+    // pessoas
+    const pessoas = h('div');
+    const paintPessoas = () => {
+      pessoas.replaceChildren();
+      if (!c.membros.length) pessoas.append(h('div',{class:'empty', text:'Nenhuma pessoa cadastrada. Adicione os nomes abaixo (só precisa uma vez).'}));
+      for (const p of c.membros){
+        const mk = (campo, cls, label) => {
+          const b = h('button',{class:`tog ${cls}` + (p[campo]?' on':''), text:label});
+          b.onclick = async () => {
+            const novo = !p[campo]; p[campo]=novo; b.classList.toggle('on', novo); paintChips();
+            try { await rpc('ig_marcar',{p_pin:S.pin, p_membro:p.id, p_semana:S.semana, p_campo:campo, p_valor:novo}); }
+            catch(e){ p[campo]=!novo; b.classList.toggle('on', !novo); paintChips(); handleErr(e); }
+          };
+          return b;
+        };
+        pessoas.append(h('div',{class:'person'},
+          h('div',{class:'nm'}, p.nome, p.tipo==='FA' && h('span',{class:'tag', text:'FA'})),
+          mk('celula','cel','Célula'), mk('culto','cul','Culto'),
+          h('button',{class:'edit', title:'Editar', text:'✎', onclick:()=>editarPessoa(c, p, () => { paintPessoas(); paintChips(); })})));
+      }
+    };
+    paintPessoas();
+    body.append(pessoas);
+
+    // visitantes
+    let tSave = null;
+    const salvarVis = () => { clearTimeout(tSave); tSave = setTimeout(async () => {
+      try { await rpc('ig_visitantes',{p_pin:S.pin, p_celula:c.id, p_semana:S.semana, p_vis:c.visitantes, p_vis_culto:c.visitantes_culto}); }
+      catch(e){ handleErr(e); }
+    }, 600); };
+    const stepper = (titulo, campo) => {
+      const n = h('span',{class:'n', text:String(c[campo]||0)});
+      const set = (v) => { c[campo]=Math.max(0,v); n.textContent=String(c[campo]); paintChips(); salvarVis(); };
+      return h('div',{class:'stepper'}, h('span',{class:'t', text:titulo}),
+        h('button',{text:'−', onclick:()=>set((c[campo]||0)-1)}), n, h('button',{text:'+', onclick:()=>set((c[campo]||0)+1)}));
+    };
+    body.append(stepper('Visitantes na célula', 'visitantes'), stepper('Visitantes no culto', 'visitantes_culto'));
+
+    // adicionar pessoa
+    const nome = h('input',{type:'text', placeholder:'Nome da pessoa', autocomplete:'off'});
+    const tipo = h('select',{style:'width:auto'}, h('option',{value:'M', text:'Membro'}), h('option',{value:'FA', text:'Freq. assíduo'}));
+    const add = h('button',{class:'btn small', text:'+ Adicionar'});
+    const doAdd = async () => {
+      const n = nome.value.trim(); if (n.length<2) return toast('Digite o nome.');
+      add.disabled = true;
+      try {
+        const r = await rpc('ig_membro_salvar',{p_pin:S.pin, p_id:null, p_celula:c.id, p_nome:n, p_tipo:tipo.value, p_ativo:true});
+        c.membros.push({id:r.id, nome:n, tipo:tipo.value, celula:false, culto:false});
+        c.membros.sort((a,b)=> a.tipo===b.tipo ? a.nome.localeCompare(b.nome,'pt-BR') : (a.tipo<b.tipo?-1:1));
+        nome.value=''; paintPessoas(); paintChips(); nome.focus();
+      } catch(e){ handleErr(e); } finally { add.disabled=false; }
+    };
+    add.onclick = doAdd; nome.addEventListener('keydown', e=>{ if(e.key==='Enter') doAdd(); });
+    body.append(h('div',{class:'addrow'}, nome, tipo, add));
+    return card;
+  }
+
+  function modal(titulo, conteudo, acoes){
+    const m = h('div',{class:'modal', onclick:(e)=>{ if (e.target===m) m.remove(); }},
+      h('div',{class:'box'}, h('h3',{text:titulo}), conteudo, h('div',{class:'acts'}, acoes(m))));
+    document.body.append(m); return m;
+  }
+
+  function editarPessoa(c, p, done){
+    const nome = h('input',{type:'text', value:p.nome});
+    const tipo = h('select',{}, h('option',{value:'M', text:'Membro (M)', selected:p.tipo==='M'||null}), h('option',{value:'FA', text:'Frequentador assíduo (FA)', selected:p.tipo==='FA'||null}));
+    const salvar = async (m, ativo) => {
+      try {
+        await rpc('ig_membro_salvar',{p_pin:S.pin, p_id:p.id, p_celula:c.id, p_nome:nome.value, p_tipo:tipo.value, p_ativo:ativo});
+        if (!ativo){ c.membros = c.membros.filter(x=>x!==p); toast('Pessoa removida da célula.'); }
+        else { p.nome = nome.value.trim(); p.tipo = tipo.value; }
+        m.remove(); done();
+      } catch(e){ handleErr(e); }
+    };
+    modal('Editar pessoa', h('div',{}, h('label',{text:'Nome'}), nome, h('label',{text:'Tipo'}), tipo,
+      h('p',{class:'muted', style:'font-size:13px;margin-top:12px', text:'"Remover" tira a pessoa da lista daqui pra frente. O que já foi lançado nas semanas anteriores continua no relatório.'})),
+      (m) => [ h('button',{class:'btn sec', style:'color:var(--bad);margin-right:auto', text:'Remover', onclick:()=>{ if (confirm('Remover '+p.nome+' da célula?')) salvar(m,false); }}),
+               h('button',{class:'btn sec', text:'Cancelar', onclick:()=>m.remove()}),
+               h('button',{class:'btn', text:'Salvar', onclick:()=>salvar(m,true)}) ]);
+  }
+
+  // ============ RESUMO DA SEMANA ============
+  async function viewSemana(){
+    app.replaceChildren(weekBar(viewSemana), h('div',{class:'loading', text:'Calculando…'}));
+    const ant = iso(addDays(parse(S.semana),-7));
+    let rows;
+    try { rows = (await rpc('ig_relatorio',{p_pin:S.pin, p_ini:ant, p_fim:S.semana})).linhas; } catch(e){ return handleErr(e); }
+    const atual = rows.filter(r=>r.semana===S.semana), passada = rows.filter(r=>r.semana===ant);
+    const soma = (l) => l.reduce((a,r)=>({ m:a.m+r.m, fa:a.fa+r.fa, v:a.v+r.v, c:a.c+r.c, cad:a.cad+r.cad_m }), {m:0,fa:0,v:0,c:0,cad:0});
+    const T = soma(atual), P = soma(passada);
+    const totCel = (x)=>x.m+x.fa+x.v;
+    const lancadas = atual.filter(r=>r.lancado).length;
+    const diff = (a,b) => { const d=a-b; if (!passada.some(r=>r.lancado)) return h('div',{class:'d muted', text:' '}); return h('div',{class:'d ' + (d>0?'up':d<0?'down':'muted'), text: (d>0?'▲ +':d<0?'▼ ':'= ') + (d===0?'igual':d) + ' vs semana passada'}); };
+    const stat = (l, v, d, extra) => h('div',{class:'stat'}, h('div',{class:'l', text:l}), h('div',{class:'v', text:String(v)}), d || h('div',{class:'d muted', text: extra || ' '}));
+
+    app.replaceChildren(weekBar(viewSemana));
+    app.append(h('div',{class:'stats'},
+      stat('Total na célula (M+FA+V)', totCel(T), diff(totCel(T), totCel(P))),
+      stat('Membros (M)', T.m, null, `de ${T.cad} cadastrados`),
+      stat('Freq. assíduos (FA)', T.fa),
+      stat('Visitantes (V)', T.v),
+      stat('Culto (C)', T.c, diff(T.c, P.c)),
+      stat('Células que lançaram', `${lancadas}/${atual.length}`, null, lancadas<atual.length ? 'faltam ' + (atual.length-lancadas) : 'todas ✓')));
+
+    app.append(h('div',{class:'toolbar'},
+      h('button',{class:'btn sec small', text:'📋 Copiar resumo p/ WhatsApp', onclick:()=>copiarWhats(atual, T, lancadas)}),
+      h('button',{class:'btn sec small', text:'⬇ Baixar planilha', onclick:()=>baixarCSV(`semana-${S.semana}.csv`,
+        [['Rede','Célula','Líder','M','FA','V','Total célula','Culto','Lançou?'], ...atual.map(r=>[r.disc_nome,r.celula,r.lider||'',r.m,r.fa,r.v,r.m+r.fa+r.v,r.c,r.lancado?'sim':'não'])])})));
+
+    // tabela por rede
+    const tb = h('tbody');
+    const porDisc = groupBy(atual, r=>r.disc_nome);
+    for (const [disc, l] of porDisc){
+      const s = soma(l);
+      tb.append(h('tr',{class:'disc'}, h('td',{text:'Rede ' + disc}), td(s.m), td(s.fa), td(s.v), td(totCel(s)), td(s.c), h('td',{text:''})));
+      for (const r of l){
+        const nome = h('td',{class: S.role==='admin' || true ? 'lnk' : '', text: r.celula + (r.lider ? ' · ' + r.lider : ''),
+          onclick:()=>{ S.tab='marcar'; S.abertas.add(r.celula_id); if (S.role==='admin') S.filtroDisc = r.disc_nome; startApp(); }});
+        tb.append(h('tr',{}, nome, td(`${r.m}/${r.cad_m}`), td(r.fa), td(r.v), td(r.m+r.fa+r.v), td(r.c),
+          h('td',{text: r.lancado ? '✓' : 'falta', style: r.lancado ? 'color:var(--ok);font-weight:700' : 'color:var(--warn);font-weight:700'})));
+      }
+    }
+    tb.append(h('tr',{class:'total'}, h('td',{text:'TOTAL GERAL'}), td(T.m), td(T.fa), td(T.v), td(totCel(T)), td(T.c), h('td',{text:`${lancadas}/${atual.length}`})));
+    app.append(h('div',{class:'scroll'}, h('table',{class:'tbl'},
+      h('thead',{}, h('tr',{}, ['Célula','M','FA','V','Total cél.','Culto','Lançou'].map(x=>h('th',{text:x})))), tb)));
+    app.append(h('p',{class:'legend', style:'margin-top:10px', text:'M = membros que foram na célula · FA = frequentadores assíduos · V = visitantes · Culto = membros/FA que foram no culto + visitantes no culto. Toque no nome da célula para ver quem foi.'}));
+  }
+  const td = (v) => h('td',{text:String(v)});
+  function groupBy(l, f){ const m=new Map(); for (const x of l){ const k=f(x); if(!m.has(k)) m.set(k,[]); m.get(k).push(x);} return m; }
+
+  function copiarWhats(atual, T, lancadas){
+    const linhas = [`*${CFG.nomeIgreja || 'Relatório das Redes'}*`, `Semana de ${weekLabel(S.semana)}`, '',
+      `Célula: *${T.m+T.fa+T.v}* (M ${T.m} · FA ${T.fa} · V ${T.v})`, `Culto: *${T.c}*`, `Células que lançaram: ${lancadas}/${atual.length}`, ''];
+    for (const [disc, l] of groupBy(atual, r=>r.disc_nome)){
+      const s = l.reduce((a,r)=>({t:a.t+r.m+r.fa+r.v, c:a.c+r.c}),{t:0,c:0});
+      linhas.push(`*Rede ${disc}:* célula ${s.t} · culto ${s.c}`);
+      for (const r of l) linhas.push(`  • ${r.celula}: ${r.lancado ? `${r.m+r.fa+r.v} na célula, ${r.c} no culto` : 'não lançou'}`);
+    }
+    const txt = linhas.join('\n');
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(()=>toast('Resumo copiado! Cole no WhatsApp.'), ()=>{ prompt('Copie o resumo:', txt); });
+  }
+
+  function baixarCSV(nome, linhas){
+    const esc = (v) => { const s=String(v ?? ''); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+    const csv = '﻿' + linhas.map(l=>l.map(esc).join(';')).join('\r\n');
+    const a = h('a',{href:URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})), download:nome});
+    document.body.append(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  // ============ MÊS (no padrão da planilha) ============
+  async function viewMes(){
+    const {y, m} = S.mes;
+    const semanas = mondaysOfMonth(y, m);
+    const hoje = new Date();
+    const bar = h('div',{class:'weekbar'},
+      h('button',{class:'iconbtn', text:'‹', onclick:()=>{ S.mes = m===0?{y:y-1,m:11}:{y,m:m-1}; viewMes(); }}),
+      h('div',{class:'lbl'}, `${MESES[m]} ${y}`, h('small',{text:`${semanas.length} semanas`})),
+      h('button',{class:'iconbtn', text:'›', disabled:(y>hoje.getFullYear()||(y===hoje.getFullYear()&&m>=hoje.getMonth()))||null,
+        onclick:()=>{ if (!(y>hoje.getFullYear()||(y===hoje.getFullYear()&&m>=hoje.getMonth()))) { S.mes = m===11?{y:y+1,m:0}:{y,m:m+1}; viewMes(); } }}));
+    app.replaceChildren(bar, h('div',{class:'loading', text:'Calculando o mês…'}));
+    let rows;
+    try { rows = (await rpc('ig_relatorio',{p_pin:S.pin, p_ini:semanas[0], p_fim:semanas[semanas.length-1]})).linhas; } catch(e){ return handleErr(e); }
+    // só conta para a média as semanas que já passaram/começaram
+    const ate = iso(monday(new Date()));
+    const validas = semanas.filter(s=>s<=ate);
+
+    const head1 = h('tr',{}, h('th',{text:'Célula', rowspan:'2'}), semanas.map((s,i)=>h('th',{colspan:'4', style:'text-align:center', text:`${i+1}ª sem · ${br(parse(s))}`})), h('th',{colspan:'5', style:'text-align:center', text:'Média do mês'}));
+    const head2 = h('tr',{}, semanas.map(()=>['M','FA','V','C'].map(x=>h('th',{text:x}))), ['M','FA','V','C','Total'].map(x=>h('th',{text:x})));
+    const tb = h('tbody');
+    const media = (l, k) => { const v = l.filter(r=>r.lancado && validas.includes(r.semana)); return v.length ? v.reduce((a,r)=>a+r[k],0)/v.length : 0; };
+    const f1 = (n) => (Math.round(n*10)/10).toLocaleString('pt-BR');
+    const csv = [['Rede','Célula', ...semanas.flatMap((s,i)=>[`${i+1}ª M`,`${i+1}ª FA`,`${i+1}ª V`,`${i+1}ª C`]), 'Média M','Média FA','Média V','Média C','Média total']];
+
+    const linhaDe = (nome, l, cls) => {
+      const by = new Map(l.map(r=>[r.semana, r]));
+      const cells = semanas.flatMap(s => { const r = by.get(s); return r && r.lancado ? [r.m, r.fa, r.v, r.c] : ['','','','']; });
+      const mm = media(l,'m'), mf = media(l,'fa'), mv = media(l,'v'), mc = media(l,'c');
+      return { tr: h('tr',{class:cls||''}, h('td',{text:nome}), cells.map(v=>td(v)), td(f1(mm)), td(f1(mf)), td(f1(mv)), td(f1(mc)), td(f1(mm+mf+mv))),
+               csv: [...cells, f1(mm), f1(mf), f1(mv), f1(mc), f1(mm+mf+mv)] };
+    };
+    const somaPorSemana = (l) => [...groupBy(l, r=>r.semana)].map(([semana, x]) => ({ semana, lancado:x.some(r=>r.lancado), m:x.reduce((a,r)=>a+r.m,0), fa:x.reduce((a,r)=>a+r.fa,0), v:x.reduce((a,r)=>a+r.v,0), c:x.reduce((a,r)=>a+r.c,0) }));
+
+    for (const [disc, l] of groupBy(rows, r=>r.disc_nome)){
+      const d = linhaDe('Rede ' + disc, somaPorSemana(l), 'disc'); tb.append(d.tr); csv.push([disc, '(total da rede)', ...d.csv]);
+      for (const [, lc] of groupBy(l, r=>r.celula_id)){
+        const x = linhaDe(lc[0].celula + (lc[0].lider ? ' · ' + lc[0].lider : ''), lc); tb.append(x.tr); csv.push([disc, lc[0].celula, ...x.csv]);
+      }
+    }
+    const g = linhaDe('TOTAL GERAL', somaPorSemana(rows), 'total'); tb.append(g.tr); csv.push(['TOTAL GERAL','', ...g.csv]);
+
+    app.replaceChildren(bar,
+      h('div',{class:'toolbar'}, h('button',{class:'btn sec small', text:'⬇ Baixar planilha do mês', onclick:()=>baixarCSV(`relatorio-${y}-${pad(m+1)}.csv`, csv)})),
+      h('div',{class:'scroll'}, h('table',{class:'tbl'}, h('thead',{}, head1, head2), tb)),
+      h('p',{class:'legend', style:'margin-top:10px', text:'M = membros na célula · FA = frequentadores assíduos · V = visitantes · C = culto. A média conta só as semanas em que a célula lançou. Semana em branco = célula ainda não lançou.'}));
+  }
+
+  // ============ CADASTRO (Pastor) ============
+  async function viewCadastro(){
+    app.replaceChildren(h('div',{class:'loading', text:'Carregando cadastro…'}));
+    let d;
+    try { d = await rpc('ig_admin_listar',{p_pin:S.pin}); } catch(e){ return handleErr(e); }
+    const discs = d.discipuladores || [], cels = d.celulas || [];
+    const nomeDisc = (id) => (discs.find(x=>x.id===id)||{}).nome || '— sem discipulador —';
+    app.replaceChildren();
+
+    app.append(h('h2',{class:'sec', text:'Discipuladores (cada um entra com o seu PIN)'}));
+    const ld = h('div',{class:'card list'});
+    for (const x of discs) ld.append(h('div',{class:'it' + (x.ativo?'':' off')},
+      h('div',{class:'nm'}, h('b',{text:x.nome}), ' ', h('span',{class:'muted', text: x.ativo ? '' : '(desativado)'})),
+      h('span',{class:'pin', text:x.pin}),
+      h('button',{class:'btn sec small', text:'Editar', onclick:()=>editarDisc(x)})));
+    if (!discs.length) ld.append(h('div',{class:'empty', text:'Nenhum discipulador.'}));
+    app.append(ld, h('button',{class:'btn small', text:'+ Novo discipulador', onclick:()=>editarDisc(null)}));
+
+    app.append(h('h2',{class:'sec', text:'Células'}));
+    const lc = h('div',{class:'card list'});
+    for (const c of cels) lc.append(h('div',{class:'it' + (c.ativo?'':' off')},
+      h('div',{class:'nm'}, h('b',{text:c.nome}), h('div',{class:'muted', style:'font-size:13px', text:[ 'Rede ' + nomeDisc(c.discipulador_id), c.lider && 'Líder: '+c.lider, c.dia && (c.dia + (c.hora?' '+c.hora:'')), `${c.pessoas} pessoas`, !c.ativo && 'desativada' ].filter(Boolean).join(' · ')})),
+      h('button',{class:'btn sec small', text:'Editar', onclick:()=>editarCelula(c, discs)})));
+    app.append(lc, h('button',{class:'btn small', text:'+ Nova célula', onclick:()=>editarCelula(null, discs)}));
+
+    app.append(h('h2',{class:'sec', text:'PIN do Pastor'}));
+    app.append(h('div',{class:'card', style:'padding:14px'},
+      h('p',{class:'muted', style:'margin-top:0;font-size:14px', text:'Este PIN vê o relatório de todas as redes e mexe no cadastro. Não passe para ninguém.'}),
+      h('button',{class:'btn sec small', text:'Trocar meu PIN', onclick:trocarPinAdmin})));
+  }
+
+  function editarDisc(x){
+    const nome = h('input',{type:'text', value:x?x.nome:''});
+    const pin = h('input',{type:'tel', inputmode:'numeric', maxlength:'8', value:x?x.pin:String(Math.floor(1000+Math.random()*9000))});
+    const ativo = h('input',{type:'checkbox', checked: !x || x.ativo || null});
+    modal(x ? 'Editar discipulador' : 'Novo discipulador',
+      h('div',{}, h('label',{text:'Nome (como aparece no relatório)'}), nome, h('label',{text:'PIN de acesso (4 a 8 números)'}), pin,
+        h('label',{}, ativo, ' Ativo (desmarque para tirar o acesso)')),
+      (m)=>[ h('button',{class:'btn sec', text:'Cancelar', onclick:()=>m.remove()}),
+             h('button',{class:'btn', text:'Salvar', onclick: async ()=>{
+               try { await rpc('ig_admin_disc_salvar',{p_pin:S.pin, p_id:x?x.id:null, p_nome:nome.value, p_pin_disc:pin.value, p_ativo:ativo.checked}); m.remove(); toast('Salvo.'); viewCadastro(); }
+               catch(e){ handleErr(e); } }}) ]);
+  }
+
+  function editarCelula(c, discs){
+    const f = (k, ph) => h('input',{type:'text', value:c && c[k] ? c[k] : '', placeholder:ph||''});
+    const nome=f('nome'), lider=f('lider'), anf=f('anfitriao'), dia=f('dia','Ex.: Sábado'), hora=f('hora','Ex.: 15h');
+    const disc = h('select',{}, h('option',{value:'', text:'— escolha —'}), discs.filter(d=>d.ativo || (c && d.id===c.discipulador_id)).map(d=>h('option',{value:d.id, text:d.nome, selected: c && c.discipulador_id===d.id || null})));
+    const ativo = h('input',{type:'checkbox', checked: !c || c.ativo || null});
+    modal(c ? 'Editar célula' : 'Nova célula',
+      h('div',{}, h('label',{text:'Nome da célula'}), nome, h('label',{text:'Rede (discipulador)'}), disc, h('label',{text:'Líder'}), lider,
+        h('label',{text:'Anfitrião'}), anf, h('label',{text:'Dia'}), dia, h('label',{text:'Horário'}), hora,
+        h('label',{}, ativo, ' Ativa (desmarque se a célula fechou ou multiplicou)')),
+      (m)=>[ h('button',{class:'btn sec', text:'Cancelar', onclick:()=>m.remove()}),
+             h('button',{class:'btn', text:'Salvar', onclick: async ()=>{
+               if (!disc.value) return toast('Escolha a rede.');
+               try { await rpc('ig_admin_celula_salvar',{p_pin:S.pin, p_id:c?c.id:null, p_disc:disc.value, p_nome:nome.value, p_lider:lider.value, p_anfitriao:anf.value, p_dia:dia.value, p_hora:hora.value, p_ativo:ativo.checked}); m.remove(); toast('Salvo.'); viewCadastro(); }
+               catch(e){ handleErr(e); } }}) ]);
+  }
+
+  function trocarPinAdmin(){
+    const novo = h('input',{type:'password', inputmode:'numeric', maxlength:'8', placeholder:'Novo PIN'});
+    const conf = h('input',{type:'password', inputmode:'numeric', maxlength:'8', placeholder:'Repita o novo PIN'});
+    modal('Trocar PIN do Pastor', h('div',{}, h('label',{text:'Novo PIN (4 a 8 números)'}), novo, h('label',{text:'Confirme'}), conf),
+      (m)=>[ h('button',{class:'btn sec', text:'Cancelar', onclick:()=>m.remove()}),
+             h('button',{class:'btn', text:'Salvar', onclick: async ()=>{
+               if (novo.value !== conf.value) return toast('Os PINs não conferem.');
+               try { await rpc('ig_admin_trocar_pin',{p_pin:S.pin, p_novo:novo.value}); S.pin=novo.value.trim(); store.set('ig_pin',S.pin); m.remove(); toast('PIN trocado.'); }
+               catch(e){ handleErr(e); } }}) ]);
+  }
+
+  autoLogin();
+})();
+</script>
+</body>
+</html>
