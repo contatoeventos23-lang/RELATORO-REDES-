@@ -164,7 +164,7 @@
     pin: store.get('ig_pin'), role:null, nome:'',
     semana: iso(monday(new Date())),
     mes: { y:new Date().getFullYear(), m:new Date().getMonth() },
-    tab: null, abertas: new Set(), filtroDisc: '',
+    tab: null, fechadas: new Set(), filtroDisc: '',
   };
   if (CFG.nomeIgreja) { $('#igreja').textContent = CFG.nomeIgreja; document.title = 'Relatório · ' + CFG.nomeIgreja; }
 
@@ -211,7 +211,7 @@
   }
 
   // ============ ABAS ============
-  const TABS_ADMIN = [['semana','📊 Semana'],['mes','📅 Mês'],['marcar','✅ Marcar presença'],['cadastro','⚙️ Cadastro']];
+  const TABS_ADMIN = [['marcar','✅ Marcar presença'],['semana','📊 Semana'],['mes','📅 Mês'],['cadastro','⚙️ Cadastro']];
   const TABS_DISC  = [['marcar','✅ Marcar presença'],['semana','📊 Resumo'],['mes','📅 Mês']];
   function startApp(){
     $('#topbar').classList.remove('hidden');
@@ -256,8 +256,11 @@
       if (S.filtroDisc) lista = celulas.filter(c=>c.disc_nome===S.filtroDisc);
     }
     if (!lista.length) app.append(h('div',{class:'card'}, h('div',{class:'empty', text:'Nenhuma célula para você ainda. Peça ao Pastor para cadastrar.'})));
-    if (lista.length === 1) S.abertas.add(lista[0].id);
-    for (const c of lista) app.append(cardCelula(c));
+    let redeAtual = null;
+    for (const c of lista){
+      if (S.role==='admin' && c.disc_nome !== redeAtual){ redeAtual = c.disc_nome; app.append(h('h2',{class:'sec', text:'Rede ' + redeAtual})); }
+      app.append(cardCelula(c));
+    }
   }
 
   function resumoCel(c){
@@ -280,10 +283,10 @@
         h('span',{class:'chip cu', text:`Culto: ${r.cu}`}));
     };
     paintChips();
-    const aberta = () => S.abertas.has(c.id);
+    const aberta = () => !S.fechadas.has(c.id);
     const body = h('div',{class:'body' + (aberta()?'':' hidden')});
     const arrow = h('span',{style:'font-size:20px;color:var(--muted)', text: aberta()?'▾':'▸'});
-    const head = h('div',{class:'head', onclick:()=>{ if (aberta()) S.abertas.delete(c.id); else S.abertas.add(c.id); body.classList.toggle('hidden'); arrow.textContent = aberta()?'▾':'▸'; }},
+    const head = h('div',{class:'head', onclick:()=>{ if (aberta()) S.fechadas.add(c.id); else S.fechadas.delete(c.id); body.classList.toggle('hidden'); arrow.textContent = aberta()?'▾':'▸'; }},
       h('div',{style:'flex:1;min-width:0'},
         h('h3',{text:c.nome}),
         h('div',{class:'sub', text:[ c.lider && ('Líder: '+c.lider), c.dia && (c.dia + (c.hora?' · '+c.hora:'')), S.role==='admin' && ('Rede '+c.disc_nome) ].filter(Boolean).join(' · ')}),
@@ -408,7 +411,7 @@
       tb.append(h('tr',{class:'disc'}, h('td',{text:'Rede ' + disc}), td(s.m), td(s.fa), td(s.v), td(totCel(s)), td(s.c), h('td',{text:''})));
       for (const r of l){
         const nome = h('td',{class: S.role==='admin' || true ? 'lnk' : '', text: r.celula + (r.lider ? ' · ' + r.lider : ''),
-          onclick:()=>{ S.tab='marcar'; S.abertas.add(r.celula_id); if (S.role==='admin') S.filtroDisc = r.disc_nome; startApp(); }});
+          onclick:()=>{ S.tab='marcar'; S.fechadas.delete(r.celula_id); if (S.role==='admin') S.filtroDisc = r.disc_nome; startApp(); }});
         tb.append(h('tr',{}, nome, td(`${r.m}/${r.cad_m}`), td(r.fa), td(r.v), td(r.m+r.fa+r.v), td(r.c),
           h('td',{text: r.lancado ? '✓' : 'falta', style: r.lancado ? 'color:var(--ok);font-weight:700' : 'color:var(--warn);font-weight:700'})));
       }
@@ -493,7 +496,7 @@
     let d;
     try { d = await rpc('ig_admin_listar',{p_pin:S.pin}); } catch(e){ return handleErr(e); }
     const discs = d.discipuladores || [], cels = d.celulas || [];
-    const nomeDisc = (id) => (discs.find(x=>x.id===id)||{}).nome || '— sem discipulador —';
+    const nomeDisc = (id) => (discs.find(x=>x.id===id)||{}).nome || 'Pr. Igor';
     app.replaceChildren();
 
     app.append(h('h2',{class:'sec', text:'Discipuladores (cada um entra com o seu PIN)'}));
@@ -534,16 +537,15 @@
   function editarCelula(c, discs){
     const f = (k, ph) => h('input',{type:'text', value:c && c[k] ? c[k] : '', placeholder:ph||''});
     const nome=f('nome'), lider=f('lider'), anf=f('anfitriao'), dia=f('dia','Ex.: Sábado'), hora=f('hora','Ex.: 15h');
-    const disc = h('select',{}, h('option',{value:'', text:'— escolha —'}), discs.filter(d=>d.ativo || (c && d.id===c.discipulador_id)).map(d=>h('option',{value:d.id, text:d.nome, selected: c && c.discipulador_id===d.id || null})));
+    const disc = h('select',{}, h('option',{value:'', text:'Pr. Igor (célula do Pastor)'}), discs.filter(d=>d.ativo || (c && d.id===c.discipulador_id)).map(d=>h('option',{value:d.id, text:d.nome, selected: c && c.discipulador_id===d.id || null})));
     const ativo = h('input',{type:'checkbox', checked: !c || c.ativo || null});
     modal(c ? 'Editar célula' : 'Nova célula',
-      h('div',{}, h('label',{text:'Nome da célula'}), nome, h('label',{text:'Rede (discipulador)'}), disc, h('label',{text:'Líder'}), lider,
+      h('div',{}, h('label',{text:'Nome da célula'}), nome, h('label',{text:'Rede (de qual discipulador)'}), disc, h('label',{text:'Líder'}), lider,
         h('label',{text:'Anfitrião'}), anf, h('label',{text:'Dia'}), dia, h('label',{text:'Horário'}), hora,
         h('label',{}, ativo, ' Ativa (desmarque se a célula fechou ou multiplicou)')),
       (m)=>[ h('button',{class:'btn sec', text:'Cancelar', onclick:()=>m.remove()}),
              h('button',{class:'btn', text:'Salvar', onclick: async ()=>{
-               if (!disc.value) return toast('Escolha a rede.');
-               try { await rpc('ig_admin_celula_salvar',{p_pin:S.pin, p_id:c?c.id:null, p_disc:disc.value, p_nome:nome.value, p_lider:lider.value, p_anfitriao:anf.value, p_dia:dia.value, p_hora:hora.value, p_ativo:ativo.checked}); m.remove(); toast('Salvo.'); viewCadastro(); }
+               try { await rpc('ig_admin_celula_salvar',{p_pin:S.pin, p_id:c?c.id:null, p_disc:disc.value || null, p_nome:nome.value, p_lider:lider.value, p_anfitriao:anf.value, p_dia:dia.value, p_hora:hora.value, p_ativo:ativo.checked}); m.remove(); toast('Salvo.'); viewCadastro(); }
                catch(e){ handleErr(e); } }}) ]);
   }
 
