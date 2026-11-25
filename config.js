@@ -4,6 +4,6 @@
 // =====================================================
 window.IGREJA_CONFIG = {
   supabaseUrl: "https://njcbqtjnusockmxfiyxj.supabase.co",        // já preenchido
-  supabaseAnonKey: "COLE_AQUI_A_CHAVE_ANON_PUBLIC", // cole a chave "anon public" ou "publishable" (é pública)
+  supabaseAnonKey: "sb_publishable_R8LyRQ2cYXsotg7B-knb7A_82ni0q3V", // chave pública (publishable)
   nomeIgreja: "Igreja Videira Casa Verde",
 };
